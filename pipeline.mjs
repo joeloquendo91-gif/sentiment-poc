@@ -15,6 +15,10 @@ if (!FIRECRAWL_API_KEY || !ANTHROPIC_API_KEY) {
 }
 
 const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+);
 
 // ─── STEP 1: SCRAPE ────────────────────────────────────────────────────────
 async function scrapeUrl(url) {
@@ -182,7 +186,16 @@ function displayResults(url, sourceType, analysis) {
   console.log(JSON.stringify({ url, source_type: sourceType, ...analysis }, null, 2));
   console.log("═".repeat(60) + "\n");
 }
-
+async function saveToSupabase(url, sourceType, analysis) {
+  console.log(`\n💾 Saving to Supabase...`);
+  const { error } = await supabase.from("analyses").insert({
+    url,
+    source_type: sourceType,
+    ...analysis,
+  });
+  if (error) throw new Error(`Supabase error: ${error.message}`);
+  console.log(`✅ Saved!`);
+}
 // ─── MAIN ──────────────────────────────────────────────────────────────────
 async function main() {
   const url = process.argv[2];
@@ -203,6 +216,7 @@ async function main() {
 
     const analysis = await analyzeContent(rawText, sourceType, url);
     displayResults(url, sourceType, analysis);
+    await saveToSupabase(url, sourceType, analysis);
   } catch (err) {
     console.error("\n❌ Pipeline failed:", err.message);
     process.exit(1);
