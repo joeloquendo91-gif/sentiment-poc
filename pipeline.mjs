@@ -1,3 +1,4 @@
+import 'dotenv/config';
 // pipeline.mjs — Sentiment Analysis POC
 // Run: node pipeline.mjs <url>
 // Example: node pipeline.mjs https://www.reddit.com/r/hubspot/comments/abc123/
@@ -19,24 +20,39 @@ const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
 async function scrapeUrl(url) {
   console.log(`\n🔍 Scraping: ${url}`);
 
+  // Reddit has a free JSON API — no scraper needed
+  if (url.includes("reddit.com")) {
+    const jsonUrl = url.replace(/\/?$/, ".json") + "?limit=100";
+    const res = await fetch(jsonUrl, {
+      headers: { "User-Agent": "sentiment-poc/0.1" },
+    });
+    const data = await res.json();
+
+    // Extract post title + all comment bodies
+    const post = data[0]?.data?.children[0]?.data;
+    const comments = data[1]?.data?.children || [];
+    const commentText = comments
+      .map((c) => c.data?.body)
+      .filter(Boolean)
+      .join("\n\n");
+
+    const text = `POST: ${post?.title}\n\n${post?.selftext}\n\nCOMMENTS:\n${commentText}`;
+    console.log(`✅ Extracted ${text.length} characters`);
+    return text;
+  }
+
+  // Firecrawl for everything else
   const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      url,
-      formats: ["markdown"],
-      onlyMainContent: true, // strips nav/footer/ads
-    }),
+    body: JSON.stringify({ url, formats: ["markdown"], onlyMainContent: true }),
   });
 
   const data = await res.json();
-
-  if (!data.success) {
-    throw new Error(`Firecrawl error: ${JSON.stringify(data)}`);
-  }
+  if (!data.success) throw new Error(`Firecrawl error: ${JSON.stringify(data)}`);
 
   const text = data.data?.markdown || "";
   console.log(`✅ Extracted ${text.length} characters`);
