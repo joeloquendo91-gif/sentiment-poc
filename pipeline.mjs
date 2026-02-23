@@ -4,7 +4,7 @@ import 'dotenv/config';
 // Example: node pipeline.mjs https://www.reddit.com/r/hubspot/comments/abc123/
 
 import Anthropic from "@anthropic-ai/sdk";
-
+import { createClient } from "@supabase/supabase-js";
 // ─── CONFIG ────────────────────────────────────────────────────────────────
 const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
